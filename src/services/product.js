@@ -1,46 +1,37 @@
 import request from '../utils/request';
 
-// 获取商品列表
+// 获取礼物列表
 export const getProductList = (params) => {
   return request({
-    url: '/product/list',
+    url: '/gifts',
     method: 'get',
     params,
   });
 };
 
-// 创建商品
+// 创建礼物
 export const createProduct = (data) => {
   return request({
-    url: '/product/create',
+    url: '/gifts',
     method: 'post',
     data,
   });
 };
 
-// 更新商品
+// 更新礼物
 export const updateProduct = (id, data) => {
   return request({
-    url: `/product/update/${id}`,
+    url: `/gifts/${id}`,
     method: 'put',
     data,
   });
 };
 
-// 删除商品
+// 删除礼物
 export const deleteProduct = (id) => {
   return request({
-    url: `/product/delete/${id}`,
+    url: `/gifts/${id}`,
     method: 'delete',
-  });
-};
-
-// 更新库存
-export const updateStock = (id, data) => {
-  return request({
-    url: `/product/stock/${id}`,
-    method: 'put',
-    data,
   });
 };
 

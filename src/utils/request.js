@@ -4,7 +4,7 @@ import { getToken, logout } from './auth';
 
 // 创建 axios 实例
 const request = axios.create({
-  baseURL: '/api', // 根据实际情况修改
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 10000,
 });
 

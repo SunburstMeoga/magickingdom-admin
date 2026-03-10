@@ -3,7 +3,7 @@ import request from '../utils/request';
 // 获取组局列表
 export const getActivityList = (params) => {
   return request({
-    url: '/activity/list',
+    url: '/party-events',
     method: 'get',
     params,
   });
@@ -12,17 +12,9 @@ export const getActivityList = (params) => {
 // 审核组局
 export const approveActivity = (id, data) => {
   return request({
-    url: `/activity/approve/${id}`,
+    url: `/party-events/${id}/review`,
     method: 'post',
     data,
-  });
-};
-
-// 删除组局
-export const deleteActivity = (id) => {
-  return request({
-    url: `/activity/delete/${id}`,
-    method: 'delete',
   });
 };
 

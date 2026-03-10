@@ -3,7 +3,7 @@ import request from '../utils/request';
 // 获取工作人员列表
 export const getStaffList = (params) => {
   return request({
-    url: '/staff/list',
+    url: '/staff',
     method: 'get',
     params,
   });
@@ -12,7 +12,7 @@ export const getStaffList = (params) => {
 // 创建工作人员
 export const createStaff = (data) => {
   return request({
-    url: '/staff/create',
+    url: '/staff',
     method: 'post',
     data,
   });
@@ -21,7 +21,7 @@ export const createStaff = (data) => {
 // 更新工作人员
 export const updateStaff = (id, data) => {
   return request({
-    url: `/staff/update/${id}`,
+    url: `/staff/${id}`,
     method: 'put',
     data,
   });
@@ -30,7 +30,7 @@ export const updateStaff = (id, data) => {
 // 删除工作人员
 export const deleteStaff = (id) => {
   return request({
-    url: `/staff/delete/${id}`,
+    url: `/staff/${id}`,
     method: 'delete',
   });
 };
