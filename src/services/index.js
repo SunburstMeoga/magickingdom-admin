@@ -6,3 +6,11 @@ export * from './activity';
 export * from './exchange';
 export * from './staff';
 
+// 管理员相关接口
+export {
+  login,
+  getAdminInfo,
+  changePassword,
+  createAdmin
+} from './auth';
+

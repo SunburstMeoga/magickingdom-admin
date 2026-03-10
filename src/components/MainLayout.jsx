@@ -55,6 +55,11 @@ const MainLayout = () => {
       icon: <SwapOutlined />,
       label: '兑换记录',
     },
+    {
+      key: '/admin',
+      icon: <SettingOutlined />,
+      label: '管理员管理',
+    },
   ];
 
   const handleMenuClick = ({ key }) => {
@@ -72,6 +77,7 @@ const MainLayout = () => {
       key: 'profile',
       icon: <SettingOutlined />,
       label: '个人设置',
+      onClick: () => navigate('/admin'),
     },
     {
       type: 'divider',
@@ -118,7 +124,7 @@ const MainLayout = () => {
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <div className="user-info">
                 <Avatar icon={<UserOutlined />} />
-                <span className="username">{user?.name || '管理员'}</span>
+                <span className="username">{user?.nickname || user?.name || user?.username || '管理员'}</span>
               </div>
             </Dropdown>
           </div>

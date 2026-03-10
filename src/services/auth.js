@@ -1,20 +1,43 @@
 import request from '../utils/request';
 
-// 登录
+// 管理员登录
 export const login = (data) => {
   return request({
-    url: '/auth/login',
+    url: '/auth/admin/login',
     method: 'post',
     data,
   });
 };
 
-// 获取用户信息
-export const getUserInfo = () => {
+// 获取管理员信息
+export const getAdminInfo = () => {
   return request({
-    url: '/auth/userinfo',
+    url: '/admin/info',
     method: 'get',
   });
+};
+
+// 修改密码
+export const changePassword = (data) => {
+  return request({
+    url: '/admin/change-password',
+    method: 'post',
+    data,
+  });
+};
+
+// 创建管理员
+export const createAdmin = (data) => {
+  return request({
+    url: '/admin/create',
+    method: 'post',
+    data,
+  });
+};
+
+// 获取用户信息 (兼容旧接口)
+export const getUserInfo = () => {
+  return getAdminInfo();
 };
 
 // 登出

@@ -8,6 +8,7 @@ import Activity from './pages/Activity';
 import Product from './pages/Product';
 import Staff from './pages/Staff';
 import Exchange from './pages/Exchange';
+import Admin from './pages/Admin';
 import MainLayout from './components/MainLayout';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
@@ -32,6 +33,7 @@ function App() {
             <Route path="product" element={<Product />} />
             <Route path="staff" element={<Staff />} />
             <Route path="exchange" element={<Exchange />} />
+            <Route path="admin" element={<Admin />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

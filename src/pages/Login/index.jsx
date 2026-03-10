@@ -13,22 +13,17 @@ const Login = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      // 模拟登录 - 实际项目中替换为真实 API
-      // const res = await login(values);
-      
-      // 模拟数据
-      const mockToken = 'mock_token_' + Date.now();
-      const mockUser = {
-        username: values.username,
-        name: '管理员',
-        role: 'admin'
-      };
-      
-      setToken(mockToken);
-      setUser(mockUser);
-      
-      message.success('登录成功');
-      navigate('/');
+      const res = await login(values);
+
+      if (res.code === 0) {
+        setToken(res.data.token);
+        setUser(res.data.admin);
+
+        message.success('登录成功');
+        navigate('/');
+      } else {
+        message.error(res.message || '登录失败');
+      }
     } catch (error) {
       message.error('登录失败，请检查用户名和密码');
     } finally {
@@ -53,6 +48,10 @@ const Login = () => {
             onFinish={onFinish}
             autoComplete="off"
             size="large"
+            initialValues={{
+              username: 'admin',
+              password: 'admin123'
+            }}
           >
             <Form.Item
               name="username"
