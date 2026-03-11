@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Form, Input, Modal, message, Tabs } from 'antd';
-import { UserOutlined, LockOutlined, PlusOutlined } from '@ant-design/icons';
-import { getAdminInfo, changePassword, createAdmin } from '../../services/auth';
+import { Card, Button, Form, Input, Modal, message, Tabs, Table, Tag, Space } from 'antd';
+import { UserOutlined, LockOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { getAdminInfo, changePassword, createAdmin, getAdminList } from '../../services/auth';
 import { getUser } from '../../utils/auth';
 
 const { TabPane } = Tabs;
 
 const Admin = () => {
   const [adminInfo, setAdminInfo] = useState(null);
+  const [adminList, setAdminList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
   const [passwordForm] = Form.useForm();
   const [createForm] = Form.useForm();
 
@@ -30,6 +37,31 @@ const Admin = () => {
       if (localUser) {
         setAdminInfo(localUser);
       }
+    }
+  };
+
+  const fetchAdminList = async (page = 1, pageSize = 10) => {
+    try {
+      setTableLoading(true);
+      const res = await getAdminList({
+        page,
+        page_size: pageSize,
+      });
+      if (res.code === 0) {
+        setAdminList(res.data?.list || []);
+        setPagination({
+          current: res.data?.page || page,
+          pageSize: res.data?.page_size || pageSize,
+          total: res.data?.total || 0,
+        });
+      } else {
+        message.error(res.message || '获取管理员列表失败');
+      }
+    } catch (error) {
+      console.error('获取管理员列表失败:', error);
+      message.error('获取管理员列表失败');
+    } finally {
+      setTableLoading(false);
     }
   };
 
@@ -59,6 +91,8 @@ const Admin = () => {
         message.success('管理员创建成功');
         setCreateModalVisible(false);
         createForm.resetFields();
+        // 刷新管理员列表
+        fetchAdminList(pagination.current, pagination.pageSize);
       } else {
         message.error(res.message || '管理员创建失败');
       }
@@ -69,9 +103,86 @@ const Admin = () => {
     }
   };
 
+  const handleTableChange = (newPagination) => {
+    fetchAdminList(newPagination.current, newPagination.pageSize);
+  };
+
+  const adminColumns = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+    },
+    {
+      title: '用户名',
+      dataIndex: 'username',
+      key: 'username',
+    },
+    {
+      title: '昵称',
+      dataIndex: 'nickname',
+      key: 'nickname',
+    },
+    {
+      title: '头像',
+      dataIndex: 'avatar_url',
+      key: 'avatar_url',
+      render: (url) => url ? (
+        <img src={url} alt="avatar" style={{ width: 40, height: 40, borderRadius: '50%' }} />
+      ) : (
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <UserOutlined />
+        </div>
+      ),
+    },
+    {
+      title: '角色',
+      dataIndex: 'role',
+      key: 'role',
+      render: (role) => {
+        const roleMap = {
+          super_admin: { text: '超级管理员', color: 'red' },
+          admin: { text: '管理员', color: 'blue' },
+        };
+        return <Tag color={roleMap[role]?.color}>{roleMap[role]?.text || role}</Tag>;
+      },
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => (
+        <Tag color={status === 1 ? 'green' : 'red'}>
+          {status === 1 ? '启用' : '禁用'}
+        </Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_, record) => (
+        <Space>
+          <Button type="link" size="small" icon={<EditOutlined />}>
+            编辑
+          </Button>
+          {record.role !== 'super_admin' && (
+            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          )}
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <div style={{ padding: '24px' }}>
-      <Tabs defaultActiveKey="info">
+      <Tabs defaultActiveKey="info" onChange={(key) => {
+        if (key === 'manage') {
+          fetchAdminList(1, 10);
+        }
+      }}>
         <TabPane tab="个人信息" key="info">
           <Card title="管理员信息" style={{ maxWidth: 600 }}>
             {adminInfo && (
@@ -79,8 +190,8 @@ const Admin = () => {
                 <p><strong>用户名：</strong>{adminInfo.username}</p>
                 <p><strong>昵称：</strong>{adminInfo.nickname || adminInfo.name}</p>
                 <p><strong>角色：</strong>{adminInfo.role}</p>
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<LockOutlined />}
                   onClick={() => setPasswordModalVisible(true)}
                 >
@@ -90,13 +201,13 @@ const Admin = () => {
             )}
           </Card>
         </TabPane>
-        
+
         <TabPane tab="管理员管理" key="manage">
-          <Card 
-            title="管理员管理" 
+          <Card
+            title="管理员列表"
             extra={
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<PlusOutlined />}
                 onClick={() => setCreateModalVisible(true)}
               >
@@ -104,7 +215,14 @@ const Admin = () => {
               </Button>
             }
           >
-            <p>管理员列表功能待开发...</p>
+            <Table
+              columns={adminColumns}
+              dataSource={adminList}
+              rowKey="id"
+              loading={tableLoading}
+              pagination={pagination}
+              onChange={handleTableChange}
+            />
           </Card>
         </TabPane>
       </Tabs>

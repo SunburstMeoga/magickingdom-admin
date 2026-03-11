@@ -12,6 +12,7 @@ export {
   getAdminInfo,
   changePassword,
   createAdmin,
+  getAdminList,
   logoutApi
 } from './auth';
 

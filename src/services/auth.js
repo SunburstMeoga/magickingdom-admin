@@ -35,6 +35,15 @@ export const createAdmin = (data) => {
   });
 };
 
+// 获取管理员列表
+export const getAdminList = (params) => {
+  return request({
+    url: '/admin/list',
+    method: 'get',
+    params,
+  });
+};
+
 // 获取用户信息 (兼容旧接口)
 export const getUserInfo = () => {
   return getAdminInfo();
