@@ -284,7 +284,11 @@ const Admin = () => {
           <Form.Item
             name="password"
             label="密码"
-            rules={[{ required: true, message: '请输入密码' }]}
+            rules={[
+              { required: true, message: '请输入密码' },
+              { min: 6, message: '密码至少6个字符' },
+              { max: 50, message: '密码最多50个字符' }
+            ]}
           >
             <Input.Password prefix={<LockOutlined />} />
           </Form.Item>
