@@ -9,6 +9,11 @@ export const getBoothList = (params) => {
   });
 };
 
+// 获取卡座类型列表 (别名)
+export const getBoothTypeList = (params) => {
+  return getBoothList(params);
+};
+
 // 创建卡座类型
 export const createBooth = (data) => {
   return request({

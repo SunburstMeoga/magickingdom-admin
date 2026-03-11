@@ -9,6 +9,11 @@ export const getProductList = (params) => {
   });
 };
 
+// 获取礼物列表 (别名)
+export const getGiftList = (params) => {
+  return getProductList(params);
+};
+
 // 创建礼物
 export const createProduct = (data) => {
   return request({

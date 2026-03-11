@@ -1,52 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, InputNumber, message, Image } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, InputNumber, message, Image, Switch } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { getProductList, createProduct, updateProduct, deleteProduct } from '../../services';
 
 const Product = () => {
   const [productList, setProductList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [stockModalVisible, setStockModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form] = Form.useForm();
-  const [stockForm] = Form.useForm();
-
-  const mockData = [
-    {
-      id: 1,
-      name: '可乐',
-      category: '饮料',
-      price: 8,
-      stock: 120,
-      image: 'https://via.placeholder.com/100',
-      description: '冰镇可乐',
-    },
-    {
-      id: 2,
-      name: '薯片',
-      category: '零食',
-      price: 12,
-      stock: 80,
-      image: 'https://via.placeholder.com/100',
-      description: '原味薯片',
-    },
-    {
-      id: 3,
-      name: '桌游套装',
-      category: '游戏',
-      price: 299,
-      stock: 15,
-      image: 'https://via.placeholder.com/100',
-      description: '经典桌游合集',
-    },
-  ];
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setProductList(mockData);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const res = await getProductList();
+      if (res.code === 0) {
+        setProductList(res.data?.list || res.data || []);
+      } else {
+        message.error(res.message || '获取礼物列表失败');
+      }
+    } catch (error) {
+      console.error('加载礼物列表失败:', error);
+      message.error('加载礼物列表失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAdd = () => {
@@ -64,10 +46,20 @@ const Product = () => {
   const handleDelete = (id) => {
     Modal.confirm({
       title: '确认删除',
-      content: '确定要删除这个商品吗？',
-      onOk: () => {
-        setProductList(productList.filter(item => item.id !== id));
-        message.success('删除成功');
+      content: '确定要删除这个礼物吗？',
+      onOk: async () => {
+        try {
+          const res = await deleteProduct(id);
+          if (res.code === 0) {
+            message.success('删除成功');
+            loadData();
+          } else {
+            message.error(res.message || '删除失败');
+          }
+        } catch (error) {
+          console.error('删除失败:', error);
+          message.error('删除失败');
+        }
       },
     });
   };
@@ -75,70 +67,61 @@ const Product = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      setLoading(true);
+
       if (editingProduct) {
-        setProductList(productList.map(item =>
-          item.id === editingProduct.id ? { ...item, ...values } : item
-        ));
-        message.success('更新成功');
+        const res = await updateProduct(editingProduct.id, values);
+        if (res.code === 0) {
+          message.success('更新成功');
+          setModalVisible(false);
+          loadData();
+        } else {
+          message.error(res.message || '更新失败');
+        }
       } else {
-        const newProduct = { id: Date.now(), ...values };
-        setProductList([...productList, newProduct]);
-        message.success('添加成功');
+        const res = await createProduct(values);
+        if (res.code === 0) {
+          message.success('添加成功');
+          setModalVisible(false);
+          loadData();
+        } else {
+          message.error(res.message || '添加失败');
+        }
       }
-      setModalVisible(false);
     } catch (error) {
-      console.error('Validation failed:', error);
-    }
-  };
-
-  const handleUpdateStock = (record) => {
-    setEditingProduct(record);
-    stockForm.setFieldsValue({ stock: record.stock });
-    setStockModalVisible(true);
-  };
-
-  const handleStockSubmit = async () => {
-    try {
-      const values = await stockForm.validateFields();
-      setProductList(productList.map(item =>
-        item.id === editingProduct.id ? { ...item, stock: values.stock } : item
-      ));
-      message.success('库存更新成功');
-      setStockModalVisible(false);
-    } catch (error) {
-      console.error('Validation failed:', error);
+      console.error('提交失败:', error);
+      message.error('操作失败');
+    } finally {
+      setLoading(false);
     }
   };
 
   const columns = [
     {
       title: '图片',
-      dataIndex: 'image',
-      key: 'image',
-      render: (image) => <Image src={image} width={50} height={50} />,
+      dataIndex: 'image_url',
+      key: 'image_url',
+      render: (image) => <Image src={image || 'https://via.placeholder.com/50'} width={50} height={50} />,
     },
-    { title: '商品名称', dataIndex: 'name', key: 'name' },
-    { title: '分类', dataIndex: 'category', key: 'category' },
-    { title: '价格', dataIndex: 'price', key: 'price', render: (price) => `¥${price}` },
+    { title: '礼物名称', dataIndex: 'name', key: 'name' },
+    { title: '价格（金币）', dataIndex: 'price', key: 'price' },
     {
-      title: '库存',
-      dataIndex: 'stock',
-      key: 'stock',
-      render: (stock) => (
-        <span style={{ color: stock < 20 ? 'red' : 'inherit' }}>
-          {stock} {stock < 20 && '(库存不足)'}
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => (
+        <span style={{ color: status === 1 ? 'green' : 'red' }}>
+          {status === 1 ? '启用' : '禁用'}
         </span>
       ),
     },
+    { title: '排序', dataIndex: 'sort_order', key: 'sort_order' },
     { title: '描述', dataIndex: 'description', key: 'description' },
     {
       title: '操作',
       key: 'action',
       render: (_, record) => (
         <Space>
-          <Button type="link" size="small" onClick={() => handleUpdateStock(record)}>
-            更新库存
-          </Button>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -152,49 +135,37 @@ const Product = () => {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 24 }}>商品管理</h1>
+      <h1 style={{ marginBottom: 24 }}>礼物管理</h1>
       <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} style={{ marginBottom: 16 }}>
-        添加商品
+        添加礼物
       </Button>
       <Table columns={columns} dataSource={productList} rowKey="id" loading={loading} />
 
       <Modal
-        title={editingProduct ? '编辑商品' : '添加商品'}
+        title={editingProduct ? '编辑礼物' : '添加礼物'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
         width={600}
+        confirmLoading={loading}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="商品名称" rules={[{ required: true }]}>
+          <Form.Item name="name" label="礼物名称" rules={[{ required: true, message: '请输入礼物名称' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="category" label="分类" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="price" label="价格" rules={[{ required: true }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="stock" label="库存" rules={[{ required: true }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="image" label="图片URL">
+          <Form.Item name="image_url" label="图片URL" rules={[{ required: true, message: '请输入图片URL' }]}>
             <Input placeholder="https://..." />
+          </Form.Item>
+          <Form.Item name="price" label="价格（金币）" rules={[{ required: true, message: '请输入价格' }]}>
+            <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={3} />
           </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="更新库存"
-        open={stockModalVisible}
-        onOk={handleStockSubmit}
-        onCancel={() => setStockModalVisible(false)}
-      >
-        <Form form={stockForm} layout="vertical">
-          <Form.Item name="stock" label="库存数量" rules={[{ required: true }]}>
+          <Form.Item name="status" label="状态" initialValue={1}>
+            <Switch checkedChildren="启用" unCheckedChildren="禁用" checked={form.getFieldValue('status') === 1} onChange={(checked) => form.setFieldsValue({ status: checked ? 1 : 0 })} />
+          </Form.Item>
+          <Form.Item name="sort_order" label="排序" initialValue={0}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
         </Form>

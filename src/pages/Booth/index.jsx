@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Form, Input, InputNumber, message, Tag, Tabs } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, InputNumber, message, Tag, Tabs, Switch } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import {
+  getBoothList,
+  createBooth,
+  updateBooth,
+  deleteBooth,
+  getBookingList,
+  approveBooking
+} from '../../services';
 
 const Booth = () => {
   const [boothList, setBoothList] = useState([]);
@@ -9,26 +17,50 @@ const Booth = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingBooth, setEditingBooth] = useState(null);
   const [form] = Form.useForm();
-
-  // 模拟数据
-  const mockBoothData = [
-    { id: 1, name: 'A01', capacity: 6, price: 588, status: 'available', description: '靠窗位置，视野开阔' },
-    { id: 2, name: 'A02', capacity: 8, price: 788, status: 'available', description: '豪华卡座，配备独立音响' },
-    { id: 3, name: 'B01', capacity: 4, price: 388, status: 'occupied', description: '温馨小卡座' },
-  ];
-
-  const mockBookingData = [
-    { id: 1, boothName: 'A01', userName: '张三', phone: '13800138000', date: '2026-03-15', status: 'pending' },
-    { id: 2, boothName: 'A02', userName: '李四', phone: '13900139000', date: '2026-03-16', status: 'pending' },
-  ];
+  const [activeTab, setActiveTab] = useState('1');
 
   useEffect(() => {
-    loadData();
+    loadBoothData();
   }, []);
 
-  const loadData = () => {
-    setBoothList(mockBoothData);
-    setBookingList(mockBookingData);
+  useEffect(() => {
+    if (activeTab === '2') {
+      loadBookingData();
+    }
+  }, [activeTab]);
+
+  const loadBoothData = async () => {
+    try {
+      setLoading(true);
+      const res = await getBoothList();
+      if (res.code === 0) {
+        setBoothList(res.data?.list || res.data || []);
+      } else {
+        message.error(res.message || '获取卡座类型列表失败');
+      }
+    } catch (error) {
+      console.error('加载卡座类型列表失败:', error);
+      message.error('加载卡座类型列表失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadBookingData = async () => {
+    try {
+      setLoading(true);
+      const res = await getBookingList();
+      if (res.code === 0) {
+        setBookingList(res.data?.list || res.data || []);
+      } else {
+        message.error(res.message || '获取预订列表失败');
+      }
+    } catch (error) {
+      console.error('加载预订列表失败:', error);
+      message.error('加载预订列表失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAdd = () => {
@@ -46,10 +78,20 @@ const Booth = () => {
   const handleDelete = (id) => {
     Modal.confirm({
       title: '确认删除',
-      content: '确定要删除这个卡座吗？',
-      onOk: () => {
-        setBoothList(boothList.filter(item => item.id !== id));
-        message.success('删除成功');
+      content: '确定要删除这个卡座类型吗？',
+      onOk: async () => {
+        try {
+          const res = await deleteBooth(id);
+          if (res.code === 0) {
+            message.success('删除成功');
+            loadBoothData();
+          } else {
+            message.error(res.message || '删除失败');
+          }
+        } catch (error) {
+          console.error('删除失败:', error);
+          message.error('删除失败');
+        }
       },
     });
   };
@@ -57,43 +99,71 @@ const Booth = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      setLoading(true);
+
       if (editingBooth) {
-        setBoothList(boothList.map(item => 
-          item.id === editingBooth.id ? { ...item, ...values } : item
-        ));
-        message.success('更新成功');
+        const res = await updateBooth(editingBooth.id, values);
+        if (res.code === 0) {
+          message.success('更新成功');
+          setModalVisible(false);
+          loadBoothData();
+        } else {
+          message.error(res.message || '更新失败');
+        }
       } else {
-        const newBooth = { id: Date.now(), ...values, status: 'available' };
-        setBoothList([...boothList, newBooth]);
-        message.success('添加成功');
+        const res = await createBooth(values);
+        if (res.code === 0) {
+          message.success('添加成功');
+          setModalVisible(false);
+          loadBoothData();
+        } else {
+          message.error(res.message || '添加失败');
+        }
       }
-      setModalVisible(false);
     } catch (error) {
-      console.error('Validation failed:', error);
+      console.error('提交失败:', error);
+      message.error('操作失败');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleApprove = (id, approved) => {
-    setBookingList(bookingList.map(item =>
-      item.id === id ? { ...item, status: approved ? 'approved' : 'rejected' } : item
-    ));
-    message.success(approved ? '审核通过' : '已拒绝');
+  const handleApprove = async (id, approved) => {
+    try {
+      setLoading(true);
+      const res = await approveBooking(id, {
+        status: approved ? 'confirmed' : 'rejected',
+        reject_reason: approved ? '' : '不符合要求'
+      });
+      if (res.code === 0) {
+        message.success(approved ? '审核通过' : '已拒绝');
+        loadBookingData();
+      } else {
+        message.error(res.message || '操作失败');
+      }
+    } catch (error) {
+      console.error('审核失败:', error);
+      message.error('审核失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const boothColumns = [
-    { title: '卡座编号', dataIndex: 'name', key: 'name' },
-    { title: '容纳人数', dataIndex: 'capacity', key: 'capacity' },
-    { title: '价格', dataIndex: 'price', key: 'price', render: (price) => `¥${price}` },
+    { title: '卡座类型名称', dataIndex: 'name', key: 'name' },
+    { title: '卡座类型编码', dataIndex: 'code', key: 'code' },
+    { title: '价格（分）', dataIndex: 'price', key: 'price', render: (price) => `¥${(price / 100).toFixed(2)}` },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={status === 'available' ? 'green' : 'red'}>
-          {status === 'available' ? '可用' : '已占用'}
+        <Tag color={status === 1 ? 'green' : 'red'}>
+          {status === 1 ? '启用' : '禁用'}
         </Tag>
       ),
     },
+    { title: '排序', dataIndex: 'sort_order', key: 'sort_order' },
     { title: '描述', dataIndex: 'description', key: 'description' },
     {
       title: '操作',
@@ -112,10 +182,22 @@ const Booth = () => {
   ];
 
   const bookingColumns = [
-    { title: '卡座', dataIndex: 'boothName', key: 'boothName' },
-    { title: '预订人', dataIndex: 'userName', key: 'userName' },
-    { title: '联系电话', dataIndex: 'phone', key: 'phone' },
-    { title: '预订日期', dataIndex: 'date', key: 'date' },
+    { title: '预订编号', dataIndex: 'reservation_no', key: 'reservation_no' },
+    { title: '用户昵称', dataIndex: 'user_nickname', key: 'user_nickname' },
+    { title: '卡座类型', dataIndex: 'booth_type_name', key: 'booth_type_name' },
+    { title: '预订日期', dataIndex: 'reservation_date', key: 'reservation_date' },
+    { title: '星期', dataIndex: 'reservation_weekday', key: 'reservation_weekday' },
+    { title: '价格（分）', dataIndex: 'price', key: 'price', render: (price) => `¥${(price / 100).toFixed(2)}` },
+    {
+      title: '押金',
+      key: 'deposit',
+      render: (_, record) => (
+        <span>
+          ¥{(record.deposit_amount / 100).toFixed(2)}
+          {record.deposit_paid ? <Tag color="green" style={{ marginLeft: 8 }}>已付</Tag> : <Tag color="orange" style={{ marginLeft: 8 }}>未付</Tag>}
+        </span>
+      )
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -123,12 +205,14 @@ const Booth = () => {
       render: (status) => {
         const statusMap = {
           pending: { text: '待审核', color: 'orange' },
-          approved: { text: '已通过', color: 'green' },
+          confirmed: { text: '已确认', color: 'green' },
           rejected: { text: '已拒绝', color: 'red' },
+          cancelled: { text: '已取消', color: 'gray' },
         };
-        return <Tag color={statusMap[status].color}>{statusMap[status].text}</Tag>;
+        return <Tag color={statusMap[status]?.color}>{statusMap[status]?.text}</Tag>;
       },
     },
+    { title: '备注', dataIndex: 'remark', key: 'remark' },
     {
       title: '操作',
       key: 'action',
@@ -160,11 +244,11 @@ const Booth = () => {
   const tabItems = [
     {
       key: '1',
-      label: '卡座列表',
+      label: '卡座类型列表',
       children: (
         <>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} style={{ marginBottom: 16 }}>
-            添加卡座
+            添加卡座类型
           </Button>
           <Table columns={boothColumns} dataSource={boothList} rowKey="id" loading={loading} />
         </>
@@ -180,26 +264,33 @@ const Booth = () => {
   return (
     <div>
       <h1 style={{ marginBottom: 24 }}>卡座管理</h1>
-      <Tabs items={tabItems} />
+      <Tabs items={tabItems} activeKey={activeTab} onChange={setActiveTab} />
 
       <Modal
-        title={editingBooth ? '编辑卡座' : '添加卡座'}
+        title={editingBooth ? '编辑卡座类型' : '添加卡座类型'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
+        confirmLoading={loading}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="卡座编号" rules={[{ required: true }]}>
+          <Form.Item name="name" label="卡座类型名称" rules={[{ required: true, message: '请输入卡座类型名称' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="capacity" label="容纳人数" rules={[{ required: true }]}>
-            <InputNumber min={1} style={{ width: '100%' }} />
+          <Form.Item name="code" label="卡座类型编码" rules={[{ required: true, message: '请输入卡座类型编码' }]}>
+            <Input />
           </Form.Item>
-          <Form.Item name="price" label="价格" rules={[{ required: true }]}>
+          <Form.Item name="price" label="价格（分）" rules={[{ required: true, message: '请输入价格' }]}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item name="status" label="状态" initialValue={1}>
+            <Switch checkedChildren="启用" unCheckedChildren="禁用" checked={form.getFieldValue('status') === 1} onChange={(checked) => form.setFieldsValue({ status: checked ? 1 : 0 })} />
+          </Form.Item>
+          <Form.Item name="sort_order" label="排序" initialValue={0}>
+            <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       </Modal>

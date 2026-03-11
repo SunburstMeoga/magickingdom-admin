@@ -1,65 +1,85 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal, Tag, message, Descriptions } from 'antd';
+import { Table, Button, Space, Modal, Tag, message, Descriptions, Input } from 'antd';
 import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
+import { getExchangeList, approveExchange } from '../../services';
 
 const Exchange = () => {
   const [exchangeList, setExchangeList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [currentExchange, setCurrentExchange] = useState(null);
-
-  const mockData = [
-    {
-      id: 1,
-      orderNo: 'EX202603100001',
-      userName: '张三',
-      phone: '13800138000',
-      productName: '可乐',
-      quantity: 2,
-      points: 160,
-      status: 'pending',
-      createTime: '2026-03-10 10:30:00',
-      address: '北京市朝阳区xxx街道',
-    },
-    {
-      id: 2,
-      orderNo: 'EX202603100002',
-      userName: '李四',
-      phone: '13900139000',
-      productName: '桌游套装',
-      quantity: 1,
-      points: 2990,
-      status: 'pending',
-      createTime: '2026-03-10 11:15:00',
-      address: '上海市浦东新区xxx路',
-    },
-    {
-      id: 3,
-      orderNo: 'EX202603090001',
-      userName: '王五',
-      phone: '13700137000',
-      productName: '薯片',
-      quantity: 3,
-      points: 360,
-      status: 'approved',
-      createTime: '2026-03-09 15:20:00',
-      address: '广州市天河区xxx大道',
-    },
-  ];
+  const [remark, setRemark] = useState('');
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setExchangeList(mockData);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const res = await getExchangeList();
+      if (res.code === 0) {
+        setExchangeList(res.data?.list || res.data || []);
+      } else {
+        message.error(res.message || '获取兑换记录列表失败');
+      }
+    } catch (error) {
+      console.error('加载兑换记录列表失败:', error);
+      message.error('加载兑换记录列表失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleApprove = (id, approved) => {
-    setExchangeList(exchangeList.map(item =>
-      item.id === id ? { ...item, status: approved ? 'approved' : 'rejected' } : item
-    ));
-    message.success(approved ? '审核通过' : '已拒绝');
+  const handleApprove = async (id, approved) => {
+    if (!approved) {
+      setCurrentExchange(exchangeList.find(item => item.id === id));
+      setRejectModalVisible(true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await approveExchange(id, {
+        approved: true,
+        remark: '已通过'
+      });
+      if (res.code === 0) {
+        message.success('审核通过');
+        loadData();
+      } else {
+        message.error(res.message || '操作失败');
+      }
+    } catch (error) {
+      console.error('审核失败:', error);
+      message.error('审核失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      setLoading(true);
+      const res = await approveExchange(currentExchange.id, {
+        approved: false,
+        remark: remark || '不符合要求'
+      });
+      if (res.code === 0) {
+        message.success('已拒绝');
+        setRejectModalVisible(false);
+        setRemark('');
+        loadData();
+      } else {
+        message.error(res.message || '操作失败');
+      }
+    } catch (error) {
+      console.error('拒绝失败:', error);
+      message.error('拒绝失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleViewDetail = (record) => {
@@ -68,13 +88,20 @@ const Exchange = () => {
   };
 
   const columns = [
-    { title: '订单号', dataIndex: 'orderNo', key: 'orderNo' },
-    { title: '用户姓名', dataIndex: 'userName', key: 'userName' },
-    { title: '联系电话', dataIndex: 'phone', key: 'phone' },
-    { title: '兑换商品', dataIndex: 'productName', key: 'productName' },
+    { title: '用户ID', dataIndex: 'user_id', key: 'user_id' },
+    { title: '商品名称', dataIndex: 'item_name', key: 'item_name' },
+    {
+      title: '商品图片',
+      dataIndex: 'item_image_url',
+      key: 'item_image_url',
+      render: (url) => url ? <img src={url} alt="item" style={{ width: 40, height: 40 }} /> : '-'
+    },
+    { title: '商品价格（金币）', dataIndex: 'item_price', key: 'item_price' },
     { title: '数量', dataIndex: 'quantity', key: 'quantity' },
-    { title: '消耗积分', dataIndex: 'points', key: 'points' },
-    { title: '申请时间', dataIndex: 'createTime', key: 'createTime' },
+    { title: '总金币', dataIndex: 'total_coins', key: 'total_coins' },
+    { title: '常规金币', dataIndex: 'regular_coins_used', key: 'regular_coins_used' },
+    { title: '限时金币', dataIndex: 'limited_coins_used', key: 'limited_coins_used' },
+    { title: '申请时间', dataIndex: 'created_at', key: 'created_at' },
     {
       title: '状态',
       dataIndex: 'status',
@@ -84,9 +111,8 @@ const Exchange = () => {
           pending: { text: '待审核', color: 'orange' },
           approved: { text: '已通过', color: 'green' },
           rejected: { text: '已拒绝', color: 'red' },
-          completed: { text: '已完成', color: 'blue' },
         };
-        return <Tag color={statusMap[status].color}>{statusMap[status].text}</Tag>;
+        return <Tag color={statusMap[status]?.color}>{statusMap[status]?.text}</Tag>;
       },
     },
     {
@@ -142,27 +168,44 @@ const Exchange = () => {
       >
         {currentExchange && (
           <Descriptions column={1} bordered>
-            <Descriptions.Item label="订单号">{currentExchange.orderNo}</Descriptions.Item>
-            <Descriptions.Item label="用户姓名">{currentExchange.userName}</Descriptions.Item>
-            <Descriptions.Item label="联系电话">{currentExchange.phone}</Descriptions.Item>
-            <Descriptions.Item label="兑换商品">{currentExchange.productName}</Descriptions.Item>
+            <Descriptions.Item label="用户ID">{currentExchange.user_id}</Descriptions.Item>
+            <Descriptions.Item label="商品ID">{currentExchange.item_id}</Descriptions.Item>
+            <Descriptions.Item label="商品名称">{currentExchange.item_name}</Descriptions.Item>
+            <Descriptions.Item label="商品价格">{currentExchange.item_price} 金币</Descriptions.Item>
             <Descriptions.Item label="数量">{currentExchange.quantity}</Descriptions.Item>
-            <Descriptions.Item label="消耗积分">{currentExchange.points}</Descriptions.Item>
-            <Descriptions.Item label="收货地址">{currentExchange.address}</Descriptions.Item>
-            <Descriptions.Item label="申请时间">{currentExchange.createTime}</Descriptions.Item>
+            <Descriptions.Item label="总金币">{currentExchange.total_coins}</Descriptions.Item>
+            <Descriptions.Item label="常规金币">{currentExchange.regular_coins_used}</Descriptions.Item>
+            <Descriptions.Item label="限时金币">{currentExchange.limited_coins_used}</Descriptions.Item>
+            <Descriptions.Item label="申请时间">{currentExchange.created_at}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={
                 currentExchange.status === 'pending' ? 'orange' :
-                currentExchange.status === 'approved' ? 'green' :
-                currentExchange.status === 'rejected' ? 'red' : 'blue'
+                currentExchange.status === 'approved' ? 'green' : 'red'
               }>
                 {currentExchange.status === 'pending' ? '待审核' :
-                 currentExchange.status === 'approved' ? '已通过' :
-                 currentExchange.status === 'rejected' ? '已拒绝' : '已完成'}
+                 currentExchange.status === 'approved' ? '已通过' : '已拒绝'}
               </Tag>
             </Descriptions.Item>
           </Descriptions>
         )}
+      </Modal>
+
+      <Modal
+        title="拒绝原因"
+        open={rejectModalVisible}
+        onOk={handleReject}
+        onCancel={() => {
+          setRejectModalVisible(false);
+          setRemark('');
+        }}
+        confirmLoading={loading}
+      >
+        <Input.TextArea
+          rows={4}
+          placeholder="请输入拒绝原因（可选）"
+          value={remark}
+          onChange={(e) => setRemark(e.target.value)}
+        />
       </Modal>
     </div>
   );
